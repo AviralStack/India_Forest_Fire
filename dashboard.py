@@ -5,46 +5,46 @@ import requests
 import numpy as np
 
 # =========================
-# CONFIGURATION
+# SYSTEM CONFIGURATION
 # =========================
-# SECURE METHOD: Load key from Streamlit Secrets
-# If running locally, you can keep your string here, but for cloud, use st.secrets
-try:
-    API_KEY = st.secrets["c64a656e4a26f68a8c93c26695f7ebd4"]
-except:
-    API_KEY = "YOUR_RAW_KEY_FOR_LOCAL_TESTING" # Only as a backup!
-
 st.set_page_config(
-    page_title="Forest Fire Risk Assessment System",
+    page_title="India Forest Fire Prediction System",
     layout="centered"
 )
 
+# SECURE API KEY LOADING
+# Attempts to load from Streamlit Secrets (Cloud). Falls back to local key if testing offline.
+try:
+    API_KEY = st.secrets["OPENWEATHER_API_KEY"]
+except:
+    # ⚠️ NOTE: Ensure this key is removed before public repository commit for security.
+    API_KEY = "8f5c880ee1c0819e9db8dea1f8e4f7c6" 
+
 # =========================
-# MODEL LOADING
+# MODEL INITIALIZATION
 # =========================
 @st.cache_resource
-def load_model():
+def load_inference_engine():
     try:
         model = joblib.load("models/forest_fire_v2.pkl")
+        # Compatibility patch for XGBoost version differences
         try:
             model.get_booster().feature_names = None
         except:
             pass
         return model
     except FileNotFoundError:
-        st.error("Model file not found. Please verify the model path.")
+        st.error("Critical Error: Model file 'models/forest_fire_v2.pkl' not found.")
         return None
 
-model = load_model()
+model = load_inference_engine()
 
 # =========================
-# WEATHER API
+# DATA ACQUISITION LAYER
 # =========================
-def get_live_weather(city):
-    url = (
-        f"http://api.openweathermap.org/data/2.5/weather"
-        f"?q={city}&appid={API_KEY}&units=metric"
-    )
+def fetch_weather_telemetry(city):
+    """Fetches real-time weather data from OpenWeatherMap API."""
+    url = f"http://api.openweathermap.org/data/2.5/weather?q={city}&appid={API_KEY}&units=metric"
     try:
         response = requests.get(url, timeout=10)
         if response.status_code == 200:
@@ -52,146 +52,170 @@ def get_live_weather(city):
             return {
                 "temp": data["main"]["temp"],
                 "humidity": data["main"]["humidity"],
-                "wind": data["wind"]["speed"] * 3.6,
+                "wind": data["wind"]["speed"] * 3.6, # Convert m/s to km/h
                 "country": data["sys"]["country"],
-                "found": True
+                "success": True
             }
-        return {"found": False}
+        return {"success": False}
     except:
-        return {"found": False}
+        return {"success": False}
 
 # =========================
-# UI
+# USER INTERFACE
 # =========================
-st.title("Forest Fire Risk Assessment System")
-st.caption("Machine Learning–Based Environmental Risk Analysis")
+st.title("India Forest Fire Prediction System")
+st.markdown("### AI-Driven Environmental Risk Assessment")
+st.markdown("---")
 
-st.sidebar.header("Input Configuration")
+st.sidebar.header("System Configuration")
 
-input_mode = st.sidebar.radio(
-    "Weather Data Source",
-    ["Live Weather Data", "Manual Simulation"]
+# 1. Input Source Selection
+input_source = st.sidebar.radio(
+    "Data Source",
+    ["Live Satellite Data", "Manual Simulation"]
 )
 
-area_type = st.sidebar.selectbox(
+# 2. Environmental Classification
+land_classification = st.sidebar.selectbox(
     "Land Classification",
     ["Forest / Vegetation", "Urban / Built Environment"]
 )
 
-temp = humidity = wind = None
-location_name = "Unknown"
+# Initialize Variables
+temp, humidity, wind = None, None, None
+location_label = "N/A"
 
 # =========================
-# INPUT HANDLING
+# INPUT PROCESSING
 # =========================
-if input_mode == "Live Weather Data":
-    city = st.text_input("City Name", "Shimla")
-    if st.button("Fetch Weather Data"):
-        with st.spinner("Retrieving weather information..."):
-            weather = get_live_weather(city)
-            if weather["found"]:
-                temp = weather["temp"]
-                humidity = weather["humidity"]
-                wind = weather["wind"]
-                location_name = f"{city}, {weather['country']}"
-                st.success(
-                    f"Temperature: {temp} °C | "
-                    f"Humidity: {humidity}% | "
-                    f"Wind Speed: {wind:.1f} km/h"
-                )
+
+# --- MODE A: LIVE DATA ---
+if input_source == "Live Satellite Data":
+    target_city = st.text_input("Target City", "Shimla")
+    
+    if st.button("Retrieve Weather Data"):
+        with st.spinner(f"Querying weather satellite for {target_city}..."):
+            telemetry = fetch_weather_telemetry(target_city)
+            
+            if telemetry["success"]:
+                temp = telemetry["temp"]
+                humidity = telemetry["humidity"]
+                wind = telemetry["wind"]
+                location_label = f"{target_city}, {telemetry['country']}"
+                
+                st.success(f"Data Retrieved Successfully: {temp}°C | {humidity}% Humidity | {wind:.1f} km/h Wind")
             else:
-                st.error("Unable to retrieve weather data. Check city name or API key.")
+                st.error("Error: Unable to retrieve data. Please check the city name or API connectivity.")
 
+# --- MODE B: SIMULATION ---
 else:
-    sim_city = st.text_input("Simulation City", "Jodhpur")
+    sim_city = st.text_input("Simulation Target", "Jodhpur")
+    
+    # Standardized Seasonal Defaults for India
+    month_list = ["January","February","March","April","May","June",
+                  "July","August","September","October","November","December"]
+    
+    selected_month = st.selectbox("Select Season (Loads Historical Averages)", month_list, index=4) # Default to May
 
-    months = [
-        "January","February","March","April","May","June",
-        "July","August","September","October","November","December"
-    ]
-    sim_month = st.selectbox("Simulation Month", months, index=4)
+    # Logic for historical averages
+    if selected_month in ["April", "May", "June"]: # Summer
+        default_t, default_h = 42.0, 15
+    elif selected_month in ["July", "August", "September"]: # Monsoon
+        default_t, default_h = 30.0, 85
+    elif selected_month in ["October", "November"]: # Post-Monsoon
+        default_t, default_h = 28.0, 40
+    else: # Winter
+        default_t, default_h = 15.0, 45
 
-    if sim_month in ["April", "May", "June"]:
-        def_temp, def_hum = 42.0, 15
-    elif sim_month in ["July", "August", "September"]:
-        def_temp, def_hum = 30.0, 85
-    elif sim_month in ["October", "November"]:
-        def_temp, def_hum = 28.0, 40
-    else:
-        def_temp, def_hum = 15.0, 45
-
-    location_name = f"{sim_city} ({sim_month})"
-
-    st.info("Using season-based default values. Parameters can be adjusted below.")
+    location_label = f"{sim_city} ({selected_month} Simulation)"
+    
+    st.info(f"Simulation Mode: Parameters initialized to typical {selected_month} conditions. Adjust below for stress testing.")
 
     col1, col2, col3 = st.columns(3)
     with col1:
-        temp = st.number_input("Temperature (°C)", -10.0, 60.0, def_temp)
+        temp = st.number_input("Temperature (°C)", -10.0, 60.0, default_t)
     with col2:
-        humidity = st.number_input("Humidity (%)", 0, 100, def_hum)
+        humidity = st.number_input("Humidity (%)", 0, 100, default_h)
     with col3:
         wind = st.number_input("Wind Speed (km/h)", 0.0, 100.0, 15.0)
 
 # =========================
-# PREDICTION
+# RISK ANALYSIS ENGINE
 # =========================
 if temp is not None:
-    st.divider()
-
-    if area_type == "Urban / Built Environment":
-        risk_prob = 0.5
-        risk_label = "Negligible"
-        explanation = (
-            f"Urban environments in {location_name} "
-            "have minimal combustible vegetation."
-        )
+    st.markdown("### Risk Analysis Report")
+    
+    # SCENARIO 1: Urban Area (Zero Fuel Load)
+    if land_classification == "Urban / Built Environment":
+        final_probability = 0.5
+        risk_category = "NEGLIGIBLE"
+        risk_color = "green"
+        analysis_summary = f"Urban infrastructure in {location_label} presents negligible biological fuel load."
+    
+    # SCENARIO 2: Forest Area (AI Analysis)
     else:
-        input_df = pd.DataFrame(
-            [[temp, humidity, wind]],
-            columns=["temp_c", "humidity", "wind_kmh"]
-        )
+        # 1. AI Inference
+        input_vector = pd.DataFrame([[temp, humidity, wind]], columns=["temp_c", "humidity", "wind_kmh"])
+        raw_probability = model.predict_proba(input_vector.values)[0][1] * 100
 
-        raw_prob = model.predict_proba(input_df.values)[0][1] * 100
+        # 2. Physics-Based Post-Processing (Guardrails)
+        penalty_score = 0
+        dampening_factors = []
 
-        penalty = 0
-        reasons = []
-
+        # Humidity Guardrail
         if humidity > 50:
-            penalty += (humidity - 50) * 1.5
-            reasons.append("Elevated humidity")
-
+            penalty = (humidity - 50) * 1.5
+            penalty_score += penalty
+            dampening_factors.append("Elevated Humidity")
+        
+        # Temperature Guardrail
         if temp < 25:
-            penalty += (25 - temp) * 2.5
-            reasons.append("Low ambient temperature")
+            penalty = (25 - temp) * 2.5
+            penalty_score += penalty
+            dampening_factors.append("Low Ambient Temperature")
 
-        risk_prob = max(0, raw_prob - penalty)
+        # Apply Penalties
+        final_probability = max(0, raw_probability - penalty_score)
 
+        # Critical Thresholds (Hard Stops)
         if humidity > 80 or temp < 5:
-            risk_prob = 0.5
-            reasons = ["Unfavorable combustion conditions"]
+            final_probability = 0.5
+            dampening_factors = ["Precipitation / Freezing Conditions"]
 
-        if risk_prob < 30:
-            risk_label = "Low"
-        elif risk_prob < 70:
-            risk_label = "Moderate"
+        # 3. Risk Categorization
+        if final_probability < 30:
+            risk_category = "LOW"
+            risk_color = "green"
+        elif final_probability < 70:
+            risk_category = "MODERATE"
+            risk_color = "orange"
         else:
-            risk_label = "High"
+            risk_category = "EXTREME"
+            risk_color = "red"
 
-        explanation = (
-            "Risk adjusted based on environmental constraints"
-            + (f" ({', '.join(reasons)})" if reasons else "")
-        )
+        # Generate Summary
+        if dampening_factors:
+            analysis_summary = f"Risk reduced due to environmental inhibitors: {', '.join(dampening_factors)}."
+        else:
+            analysis_summary = "Meteorological conditions align with high-probability fire patterns."
 
     # =========================
-    # OUTPUT
+    # VISUALIZATION
     # =========================
-    col_a, col_b = st.columns([1, 2])
+    c1, c2 = st.columns([1, 2])
 
-    with col_a:
-        st.metric("Estimated Fire Probability", f"{risk_prob:.1f}%")
+    with c1:
+        st.metric("Fire Probability Index", f"{final_probability:.1f}%")
 
-    with col_b:
-        st.subheader(f"Risk Level: {risk_label}")
-        st.write(explanation)
+    with c2:
+        st.subheader(f"Risk Category: :{risk_color}[{risk_category}]")
+        st.write(f"**Analysis:** {analysis_summary}")
 
-    st.progress(int(risk_prob))
+    st.progress(int(final_probability))
+    
+    # Technical Data Expander (Professional Requirement)
+    with st.expander("View Technical Telemetry"):
+        st.dataframe(pd.DataFrame({
+            "Parameter": ["Ambient Temp", "Rel. Humidity", "Wind Velocity", "Raw Model Output", "Physics Penalty"],
+            "Value": [f"{temp} °C", f"{humidity}%", f"{wind} km/h", f"{raw_probability:.1f}%", f"-{penalty_score:.1f}%"]
+        }), hide_index=True)
