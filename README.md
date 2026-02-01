@@ -83,5 +83,5 @@ docker run -p 80:80 forest-fire-ai
 📈 Results
 The system demonstrates high accuracy in distinguishing between "True Fire Weather" and "Safe Dry Winter Days."
 
-<img width="875" height="250" alt="image" src="https://github.com/user-attachments/assets/3c2ce1a3-5d51-4d02-9a2c-dc67778b9821" />
+
 
