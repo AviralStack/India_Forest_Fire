@@ -13,11 +13,10 @@ st.set_page_config(
 )
 
 # SECURE API KEY LOADING
-# Attempts to load from Streamlit Secrets (Cloud). Falls back to local key if testing offline.
 try:
     API_KEY = st.secrets["OPENWEATHER_API_KEY"]
 except:
-    # ⚠️ NOTE: Ensure this key is removed before public repository commit for security.
+    # Backup key for local testing
     API_KEY = "8f5c880ee1c0819e9db8dea1f8e4f7c6" 
 
 # =========================
@@ -27,7 +26,6 @@ except:
 def load_inference_engine():
     try:
         model = joblib.load("models/forest_fire_v2.pkl")
-        # Compatibility patch for XGBoost version differences
         try:
             model.get_booster().feature_names = None
         except:
@@ -151,6 +149,10 @@ if temp is not None:
         risk_category = "NEGLIGIBLE"
         risk_color = "green"
         analysis_summary = f"Urban infrastructure in {location_label} presents negligible biological fuel load."
+        
+        # --- FIX: DEFINE VARIABLES TO PREVENT CRASH ---
+        raw_probability = 0.0
+        penalty_score = 0.0
     
     # SCENARIO 2: Forest Area (AI Analysis)
     else:
@@ -213,7 +215,7 @@ if temp is not None:
 
     st.progress(int(final_probability))
     
-    # Technical Data Expander (Professional Requirement)
+    # Technical Data Expander
     with st.expander("View Technical Telemetry"):
         st.dataframe(pd.DataFrame({
             "Parameter": ["Ambient Temp", "Rel. Humidity", "Wind Velocity", "Raw Model Output", "Physics Penalty"],
