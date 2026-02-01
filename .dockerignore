@@ -1,0 +1,12 @@
+# Ignore ALL environment folders
+.virtual-envs/
+.venv/
+venv/
+env/
+
+# Ignore heavy/junk files
+.git/
+__pycache__/
+*.pyc
+*.csv
+*.ipynb
