@@ -83,7 +83,5 @@ docker run -p 80:80 forest-fire-ai
 📈 Results
 The system demonstrates high accuracy in distinguishing between "True Fire Weather" and "Safe Dry Winter Days."
 
-Scenario,Location,Conditions,Raw AI Prediction,Final Output (With Physics)
-Winter Dryness,Jodhpur (Feb),"15°C, 27% Hum",98.0% (False Alarm),Moderate/High (Corrected)
-Monsoon,Mumbai (July),"28°C, 85% Hum",40.0%,0.5% (Safe)
-Heatwave,Nagpur (May),"45°C, 10% Hum",99.0%,99.0% (Extreme)
+<img width="875" height="250" alt="image" src="https://github.com/user-attachments/assets/3c2ce1a3-5d51-4d02-9a2c-dc67778b9821" />
+
