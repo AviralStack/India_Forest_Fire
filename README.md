@@ -51,7 +51,7 @@ To run this project on your local machine:
 
 1.  **Clone the Repository**
     ```bash
-    git clone [https://github.com/YOUR_USERNAME/India_Forest_Fire.git](https://github.com/YOUR_USERNAME/India_Forest_Fire.git)
+    git clone https://github.com/AviralStack/India_Forest_Fire.git
     cd India_Forest_Fire
     ```
 
@@ -79,3 +79,12 @@ docker build -t forest-fire-ai .
 
 # Run the container
 docker run -p 80:80 forest-fire-ai
+
+
+📈 Results
+The system demonstrates high accuracy in distinguishing between "True Fire Weather" and "Safe Dry Winter Days."
+Scenario,Location,Conditions,Raw AI Prediction,Final Output (With Physics)
+Winter Dryness,Jodhpur (Feb),"15°C, 27% Hum",98.0% (False Alarm),Moderate/High (Corrected)
+Monsoon,Mumbai (July),"28°C, 85% Hum",40.0%,0.5% (Safe)
+Heatwave,Nagpur (May),"45°C, 10% Hum",99.0%,99.0% (Extreme)
+
