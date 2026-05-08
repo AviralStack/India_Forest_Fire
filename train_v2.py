@@ -32,7 +32,5 @@ print(f" Model Accuracy: {accuracy * 100:.2f}%")
 print("Detailed Report:")
 print(classification_report(y_test, y_pred))
 
-# 7. SAVE THE MODEL
-# We save it with a new name so we don't overwrite the old one just yet
 joblib.dump(model, "models/forest_fire_v2.pkl")
 print("Saved to models/forest_fire_v2.pkl")
