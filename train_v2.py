@@ -6,7 +6,6 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, classification_report
 
 df = pd.read_csv("balanced_india_dataset.csv")
-print(f" Loaded {len(df)} rows of Real-World Data.")
 
 df['acq_date'] = pd.to_datetime(df['acq_date'])
 df['month'] = df['acq_date'].dt.month
@@ -29,8 +28,7 @@ model.fit(X_train, y_train)
 y_pred = model.predict(X_test)
 accuracy = accuracy_score(y_test, y_pred)
 print(f" Model Accuracy: {accuracy * 100:.2f}%")
-print("Detailed Report:")
 print(classification_report(y_test, y_pred))
 
 joblib.dump(model, "models/forest_fire_v2.pkl")
-print("Saved to models/forest_fire_v2.pkl")
+
